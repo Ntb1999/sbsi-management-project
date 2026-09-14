@@ -44,12 +44,14 @@ Gõ `/new-app <tên-app>` (Claude sẽ hỏi thêm nếu thiếu thông tin). Xe
 
 ## Hệ thống hướng dẫn Claude (agentic setup)
 
-- `.claude/rules/` — các quy tắc ngắn, luôn áp dụng: `env-secrets.md` (secrets/credentials), `git-workflow.md` (bao gồm quy tắc worktree — xem dưới), `claude-code-conventions.md`. Đọc khi bắt đầu bất kỳ task code nào.
+- `.claude/rules/` — các quy tắc ngắn, luôn áp dụng: `env-secrets.md` (secrets/credentials), `git-workflow.md` (bao gồm quy tắc worktree — xem dưới), `claude-code-conventions.md`, `knowledge-base-maintenance.md` (chủ động cập nhật `apps/<app>/CLAUDE.md` sau mỗi task có ý nghĩa — xem dưới). Đọc khi bắt đầu bất kỳ task code nào.
 - `.claude/hooks/` — guardrail tự động, chặn cứng chứ không chỉ nhắc: chặn lệnh git/rm/terraform phá hoại, chặn đọc `.env` qua shell, chặn ghi secret/private key vào file KHÔNG được gitignore, chặn empty catch block / silent fallback trong code, nhắc chạy build/lint trước khi commit, **chặn sửa code trực tiếp trên `main`/`master`** (trừ `CLAUDE.md`/`README.md`).
 - `.claude/agents/` — subagent dùng chung: `coder` (agent implement 1 task, tự chạy verification), `pr-reviewer` (review thay đổi, ưu tiên đúng-sai + bảo mật + tuân thủ rules).
 - `.claude/skills/` — quy trình cho việc lặp lại: `debugging`.
 - `.claude/commands/new-app.md` — quy trình tạo app mới (`/new-app`), dùng mẫu `docs/templates/subproject-CLAUDE-template.md` để viết CLAUDE.md cho app mới.
 
 **Quy tắc worktree:** mọi thay đổi code (không tính sửa `CLAUDE.md`/`README.md`) phải làm trong 1 worktree/branch riêng, không sửa trực tiếp trên `main`. Trước khi sửa code, Claude phải gọi tool `EnterWorktree` (tạo worktree cô lập dưới `.claude/worktrees/`) — có hook chặn cứng (`worktree-edit-guard.sh`) phòng khi quên. Xong việc, hỏi người dùng có muốn merge vào `main` không, không tự merge.
+
+**Quy tắc duy trì knowledge base:** sau mỗi task có ý nghĩa trên 1 app, Claude tự cập nhật `apps/<app>/CLAUDE.md` — KHÔNG đợi người dùng yêu cầu. Mục đích: người dùng không phải giải thích lại bối cảnh từ đầu ở session sau, và Claude (kể cả phiên/thành viên khác) có thể tiếp tục đúng chỗ đang dang dở. Có hook nhắc (`knowledge-base-reminder.sh`, không chặn) khi kết thúc session mà `apps/` có thay đổi chưa commit nhưng CLAUDE.md thì không.
 
 Các file trên được rút gọn/tổng quát hoá từ `AI-template` (tham khảo tại `C:\Users\dangk\Documents\sbsi\AI-template`) — phần nào không hợp với team này (TDD ép buộc khi chưa có test, đồng bộ 2 chiều với Codex) đã bỏ qua, có thể thêm lại sau nếu cần.

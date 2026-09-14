@@ -1,17 +1,40 @@
 import sys, os, json, urllib.request, urllib.parse, base64, ssl, datetime
 sys.stdout.reconfigure(encoding='utf-8')
 
+
+def load_dotenv(path):
+    """Minimal .env loader (no external dependency) — only fills in vars
+    that aren't already set in the real environment, standard dotenv
+    precedence. Lets you double-click SYNC_JIRA_NOW.bat each morning
+    without having to `set` env vars by hand first."""
+    if not os.path.exists(path):
+        return
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
 
 # Security fix vs. the original script: credentials used to be hardcoded
-# with a fallback default. They are now REQUIRED env vars (same account,
-# same behavior) so nothing secret is committed to source.
+# with a fallback default. They now come from scripts/.env (gitignored,
+# never committed) or real env vars — same account, same behavior, no
+# secret in source.
 username = os.environ.get("JIRA_USER")
 password = os.environ.get("JIRA_PASS")
 if not username or not password:
-    print("ERROR: Set JIRA_USER and JIRA_PASS environment variables before running this script.")
+    print("ERROR: Set JIRA_USER and JIRA_PASS in scripts/.env (copy scripts/.env.example) or as environment variables before running this script.")
     sys.exit(1)
 
 auth_b64 = base64.b64encode(f"{username}:{password}".encode('utf-8')).decode('utf-8')

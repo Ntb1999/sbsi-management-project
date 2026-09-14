@@ -1,0 +1,22 @@
+{
+  "title": "SBSI - Kế Hoạch Nghiệm Thu & System Design eKYC Onboarding Platform (236 Test Cases • TC_EKYC)",
+  "htmlAttrs": {
+    "data-theme": "light"
+  },
+  "links": [
+    {
+      "rel": "preconnect",
+      "href": "https://fonts.googleapis.com"
+    },
+    {
+      "rel": "preconnect",
+      "href": "https://fonts.gstatic.com",
+      "crossOrigin": "anonymous"
+    },
+    {
+      "href": "https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap",
+      "rel": "stylesheet"
+    }
+  ],
+  "externalScripts": []
+}

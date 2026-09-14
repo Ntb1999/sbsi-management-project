@@ -207,9 +207,19 @@ async function handleSync(request: Request) {
       syncedAt: new Date().toISOString()
     });
   } catch (error) {
+    // Node's fetch wraps the real network error (DNS, TLS, connect-timeout —
+    // e.g. Jira only being reachable from inside the corporate network) in
+    // a generic "fetch failed" TypeError with the actual cause nested in
+    // .cause. Surface it, since the original silently swallowed it too.
+    const cause =
+      error instanceof Error && "cause" in error && error.cause instanceof Error
+        ? `: ${error.cause.message}`
+        : "";
     return corsJson({
       success: false,
-      error: error instanceof Error ? error.message : "Unknown fetch error connecting to Jira FSS"
+      error:
+        (error instanceof Error ? error.message : "Unknown fetch error connecting to Jira FSS") +
+        cause
     });
   }
 }

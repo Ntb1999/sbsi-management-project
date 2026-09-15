@@ -8,6 +8,9 @@
 
 import { corsJson, corsOptions } from "@/lib/cors";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const JIRA_BASE_URL = "https://projects.fss.com.vn";
 
 // Danh sách 9 chuyên viên được chỉ định lọc issue log

@@ -258,20 +258,20 @@
               </div>
 
               <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; text-align:center; font-size:11px; margin-bottom:10px;">
-                <div style="background:var(--green-bg); border:1px solid var(--green-border); border-radius:6px; padding:4px 2px;">
+                <div style="background:var(--green-bg); border:1px solid var(--green-border); border-radius:6px; padding:4px 2px;" title="Số ca Pass hôm nay và Lũy kế dự án">
                   <div style="color:var(--green-buy); font-weight:800; font-size:13px; font-family:'JetBrains Mono',monospace;" id="standup_today_pass_cnt">0</div>
-                  <div style="color:var(--green-buy); font-size:10px;">Đạt (Pass)</div>
+                  <div style="color:var(--green-buy); font-size:10px;">Đạt hôm nay (LK: <span id="standup_today_pass_cum">14</span>)</div>
                 </div>
-                <div style="background:var(--red-bg); border:1px solid var(--red-border); border-radius:6px; padding:4px 2px;">
+                <div style="background:var(--red-bg); border:1px solid var(--red-border); border-radius:6px; padding:4px 2px;" title="Số ca Fail hôm nay và Lũy kế dự án">
                   <div style="color:var(--red-sell); font-weight:800; font-size:13px; font-family:'JetBrains Mono',monospace;" id="standup_today_fail_cnt">0</div>
-                  <div style="color:var(--red-sell); font-size:10px;">Lỗi (Fail)</div>
+                  <div style="color:var(--red-sell); font-size:10px;">Lỗi hôm nay (LK: <span id="standup_today_fail_cum">7</span>)</div>
                 </div>
                 <div style="background:var(--price-ref-bg); border:1px solid var(--price-ref-border); border-radius:6px; padding:4px 2px;">
                   <div style="color:var(--price-ref); font-weight:800; font-size:13px; font-family:'JetBrains Mono',monospace;" id="standup_today_pend_cnt">0</div>
                   <div style="color:var(--price-ref); font-size:10px;">Chờ (Pending)</div>
                 </div>
                 <div style="background:var(--bg-card-sub); border:1px solid var(--border-sub); border-radius:6px; padding:4px 2px;">
-                  <div style="color:var(--text-muted); font-weight:800; font-size:13px; font-family:'JetBrains Mono',monospace;" id="standup_today_untest_cnt">869</div>
+                  <div style="color:var(--text-muted); font-weight:800; font-size:13px; font-family:'JetBrains Mono',monospace;" id="standup_today_untest_cnt">956</div>
                   <div style="color:var(--text-muted); font-size:10px;">Chưa test</div>
                 </div>
               </div>
@@ -3430,74 +3430,62 @@
         function updateTesterProgressMatrix() {
       try {
         const matrixDefs = {
-          ngamtq: { total: 156, pass: 0, fail: 0 },
-          bachnt: { total: 114, pass: 0, fail: 0 },
-          anhll: { total: 118, pass: 0, fail: 0 },
-          baodk: { total: 216, pass: 0, fail: 0 },
-          longnh: { total: 126, pass: 0, fail: 0 },
-          cuongnt: { total: 103, pass: 0, fail: 0 },
-          vinhtq: { total: 12, pass: 0, fail: 0 },
-          huypn: { total: 12, pass: 0, fail: 0 },
-          quocpb: { total: 12, pass: 0, fail: 0 }
+          ngamtq: { total: 156, pass: 0, fail: 0, todayPass: 0, todayFail: 0 },
+          bachnt: { total: 114, pass: 0, fail: 0, todayPass: 0, todayFail: 0 },
+          anhll: { total: 118, pass: 0, fail: 0, todayPass: 0, todayFail: 0 },
+          baodk: { total: 216, pass: 0, fail: 0, todayPass: 0, todayFail: 0 },
+          longnh: { total: 126, pass: 0, fail: 0, todayPass: 0, todayFail: 0 },
+          cuongnt: { total: 103, pass: 0, fail: 0, todayPass: 0, todayFail: 0 },
+          vinhtq: { total: 12, pass: 0, fail: 0, todayPass: 0, todayFail: 0 },
+          huypn: { total: 12, pass: 0, fail: 0, todayPass: 0, todayFail: 0 },
+          quocpb: { total: 12, pass: 0, fail: 0, todayPass: 0, todayFail: 0 }
         };
 
-        // 1. UI/UX dataset check (36 TCs: 12 VinhTQ, 12 HuyPN, 12 QuocPB)
-        if (typeof PO_DATASETS !== 'undefined' && PO_DATASETS.uiux) {
-          const uiuxState = getPoState('uiux');
-          PO_DATASETS.uiux.forEach(item => {
-            const rec = uiuxState[item.id];
-            if (!rec) return;
-            const st = (typeof rec === 'object' ? rec.status : rec || '').toLowerCase();
-            const target = item.tester === 'VinhTQ' ? matrixDefs.vinhtq : (item.tester === 'HuyPN' ? matrixDefs.huypn : matrixDefs.quocpb);
-            if (target) {
-              if (st === 'pass' || st === 'passed' || st === 'đạt') target.pass++;
-              else if (st === 'fail' || st === 'failed' || st === 'lỗi') target.fail++;
+        // Scan all datasets
+        ['uiux', 'mobile', 'web'].forEach(plat => {
+          if (typeof PO_DATASETS === 'undefined' || !PO_DATASETS[plat]) return;
+          const st = (typeof getPlatformState === 'function') ? getPlatformState(plat) : (typeof getPoState === 'function' ? getPoState(plat) : {});
+          PO_DATASETS[plat].forEach(item => {
+            const rec = st[item.id];
+            let s = '';
+            if (rec) {
+              s = (typeof rec === 'object' ? rec.status : rec || '').toLowerCase().trim();
+            } else if (item.status && item.status.toLowerCase() !== 'untested') {
+              s = item.status.toLowerCase().trim();
+            }
+            if (!s || (s !== 'pass' && s !== 'passed' && s !== 'fail' && s !== 'failed' && s !== 'đạt' && s !== 'lỗi')) return;
+
+            const isPass = (s === 'pass' || s === 'passed' || s === 'đạt');
+            const isToday = (typeof getRecordDateCategory === 'function') ? (getRecordDateCategory(rec, item) === 'today') : false;
+
+            let t = (item.tester || '').toLowerCase().trim();
+            if (typeof rec === 'object' && rec.tester) {
+              const rt = rec.tester.toLowerCase().trim();
+              if (['cuongnt', 'cuong', 'ngamtq', 'nga', 'baodk', 'bao', 'anhll', 'anh', 'bachnt', 'bach', 'longnh', 'long', 'vinhtq', 'vinh', 'huypn', 'huy', 'quocpb', 'quoc'].includes(rt)) {
+                t = rt;
+              }
+            }
+
+            if (t === 'ngamtq' || t === 'nga') t = 'ngamtq';
+            else if (t === 'cuongnt' || t === 'cuong') t = 'cuongnt';
+            else if (t === 'bachnt' || t === 'bach') t = 'bachnt';
+            else if (t === 'anhll' || t === 'anh') t = 'anhll';
+            else if (t === 'baodk' || t === 'bao') t = 'baodk';
+            else if (t === 'longnh' || t === 'long') t = 'longnh';
+            else if (t === 'vinhtq' || t === 'vinh') t = 'vinhtq';
+            else if (t === 'huypn' || t === 'huy') t = 'huypn';
+            else if (t === 'quocpb' || t === 'quoc') t = 'quocpb';
+
+            if (matrixDefs[t]) {
+              if (isPass) {
+                matrixDefs[t].pass++;
+                if (isToday) matrixDefs[t].todayPass++;
+              } else {
+                matrixDefs[t].fail++;
+                if (isToday) matrixDefs[t].todayFail++;
+              }
             }
           });
-        }
-
-        // 2. Core Platforms check: Mobile App (485 TCs) and Web Trading (456 TCs)
-        ['mobile', 'web'].forEach(plat => {
-          if (typeof PO_DATASETS !== 'undefined' && PO_DATASETS[plat]) {
-            const st = getPoState(plat);
-            PO_DATASETS[plat].forEach(item => {
-              const rec = st[item.id];
-              let s = '';
-              if (rec) {
-                s = (typeof rec === 'object' ? rec.status : rec || '').toLowerCase();
-              } else if (item.status && item.status.toLowerCase() !== 'untested') {
-                s = item.status.toLowerCase();
-              }
-              if (!s) return;
-              
-              // Always resolve to the testcase assigned owner
-              let t = (item.tester || '').toLowerCase().trim();
-              
-              // If rec has an explicit designated tester assigned by user, support it as well
-              if (typeof rec === 'object' && rec.tester) {
-                const rt = rec.tester.toLowerCase().trim();
-                if (['cuongnt', 'cuong', 'ngamtq', 'nga', 'baodk', 'bao', 'anhll', 'anh', 'bachnt', 'bach', 'longnh', 'long', 'vinhtq', 'vinh', 'huypn', 'huy', 'quocpb', 'quoc'].includes(rt)) {
-                  t = rt;
-                }
-              }
-
-              // Normalize tester aliases
-              if (t === 'ngamtq' || t === 'nga') t = 'ngamtq';
-              else if (t === 'cuongnt' || t === 'cuong') t = 'cuongnt';
-              else if (t === 'bachnt' || t === 'bach') t = 'bachnt';
-              else if (t === 'anhll' || t === 'anh') t = 'anhll';
-              else if (t === 'baodk' || t === 'bao') t = 'baodk';
-              else if (t === 'longnh' || t === 'long') t = 'longnh';
-              else if (t === 'vinhtq' || t === 'vinh') t = 'vinhtq';
-              else if (t === 'huypn' || t === 'huy') t = 'huypn';
-              else if (t === 'quocpb' || t === 'quoc') t = 'quocpb';
-
-              if (matrixDefs[t]) {
-                if (s === 'pass' || s === 'passed' || s === 'đạt') matrixDefs[t].pass++;
-                else if (s === 'fail' || s === 'failed' || s === 'lỗi') matrixDefs[t].fail++;
-              }
-            });
-          }
         });
 
         let totalPassAll = 0;
@@ -3526,28 +3514,37 @@
           else elTotPct.style.color = 'var(--price-ref)';
         }
 
-        // Live Synchronize metrics into Daily Standup Personnel cards (Today)
-        const syncStandupPersonnelPills = (idKey, p, f, tot) => {
+        // Live Synchronize metrics into Daily Standup Personnel cards (Today & Cumulative)
+        const syncStandupPersonnelPills = (idKey, todayP, todayF, cumP, cumF, tot) => {
           const elP = document.getElementById('pill_pass_' + idKey);
           const elF = document.getElementById('pill_fail_' + idKey);
+          const elCumP = document.getElementById('pill_cum_pass_' + idKey);
+          const elCumF = document.getElementById('pill_cum_fail_' + idKey);
           const elU = document.getElementById('pill_untest_' + idKey);
-          if (elP) elP.innerText = p.toLocaleString();
-          if (elF) elF.innerText = f.toLocaleString();
-          if (elU) elU.innerText = Math.max(0, tot - p - f).toLocaleString();
+
+          if (elP) elP.innerText = todayP.toLocaleString();
+          if (elF) elF.innerText = todayF.toLocaleString();
+          if (elCumP) elCumP.innerText = cumP.toLocaleString();
+          if (elCumF) elCumF.innerText = cumF.toLocaleString();
+          if (elU) elU.innerText = Math.max(0, tot - cumP - cumF).toLocaleString();
         };
 
-        syncStandupPersonnelPills('ngamtq', matrixDefs.ngamtq.pass, matrixDefs.ngamtq.fail || 0, 156);
-        syncStandupPersonnelPills('cuongnt', matrixDefs.cuongnt.pass, matrixDefs.cuongnt.fail || 0, 103);
-        syncStandupPersonnelPills('anhll', matrixDefs.anhll.pass, matrixDefs.anhll.fail || 0, 118);
-        syncStandupPersonnelPills('bachnt', matrixDefs.bachnt.pass, matrixDefs.bachnt.fail || 0, 114);
+        syncStandupPersonnelPills('ngamtq', matrixDefs.ngamtq.todayPass, matrixDefs.ngamtq.todayFail, matrixDefs.ngamtq.pass, matrixDefs.ngamtq.fail || 0, 156);
+        syncStandupPersonnelPills('cuongnt', matrixDefs.cuongnt.todayPass, matrixDefs.cuongnt.todayFail, matrixDefs.cuongnt.pass, matrixDefs.cuongnt.fail || 0, 103);
+        syncStandupPersonnelPills('anhll', matrixDefs.anhll.todayPass, matrixDefs.anhll.todayFail, matrixDefs.anhll.pass, matrixDefs.anhll.fail || 0, 118);
+        syncStandupPersonnelPills('bachnt', matrixDefs.bachnt.todayPass, matrixDefs.bachnt.todayFail, matrixDefs.bachnt.pass, matrixDefs.bachnt.fail || 0, 114);
         
         const baodkPass = (matrixDefs.baodk ? matrixDefs.baodk.pass : 0) + (matrixDefs.longnh ? matrixDefs.longnh.pass : 0);
         const baodkFail = (matrixDefs.baodk ? matrixDefs.baodk.fail || 0 : 0) + (matrixDefs.longnh ? matrixDefs.longnh.fail || 0 : 0);
-        syncStandupPersonnelPills('baodk_longnh', baodkPass, baodkFail, 342);
+        const baodkTodayPass = (matrixDefs.baodk ? matrixDefs.baodk.todayPass : 0) + (matrixDefs.longnh ? matrixDefs.longnh.todayPass : 0);
+        const baodkTodayFail = (matrixDefs.baodk ? matrixDefs.baodk.todayFail || 0 : 0) + (matrixDefs.longnh ? matrixDefs.longnh.todayFail || 0 : 0);
+        syncStandupPersonnelPills('baodk_longnh', baodkTodayPass, baodkTodayFail, baodkPass, baodkFail, 342);
 
         const uiuxPass = (matrixDefs.vinhtq ? matrixDefs.vinhtq.pass : 0) + (matrixDefs.huypn ? matrixDefs.huypn.pass : 0) + (matrixDefs.quocpb ? matrixDefs.quocpb.pass : 0);
         const uiuxFail = (matrixDefs.vinhtq ? matrixDefs.vinhtq.fail || 0 : 0) + (matrixDefs.huypn ? matrixDefs.huypn.fail || 0 : 0) + (matrixDefs.quocpb ? matrixDefs.quocpb.fail || 0 : 0);
-        syncStandupPersonnelPills('uiux', uiuxPass, uiuxFail, 36);
+        const uiuxTodayPass = (matrixDefs.vinhtq ? matrixDefs.vinhtq.todayPass : 0) + (matrixDefs.huypn ? matrixDefs.huypn.todayPass : 0) + (matrixDefs.quocpb ? matrixDefs.quocpb.todayPass : 0);
+        const uiuxTodayFail = (matrixDefs.vinhtq ? matrixDefs.vinhtq.todayFail || 0 : 0) + (matrixDefs.huypn ? matrixDefs.huypn.todayFail || 0 : 0) + (matrixDefs.quocpb ? matrixDefs.quocpb.todayFail || 0 : 0);
+        syncStandupPersonnelPills('uiux', uiuxTodayPass, uiuxTodayFail, uiuxPass, uiuxFail, 36);
 
         // Dynamically refresh Yesterday tasks based on actual test progress
         if (typeof renderYesterdayTasks === 'function' && !window._renderingYesterdayTasks) {
@@ -3933,13 +3930,13 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
                 const time = typeof rec === 'object' && rec.time ? rec.time : '';
                 if (st === 'pass' || st === 'passed') {
                   pass++;
-                  allTestedTcs.push({ platform: 'uiux', id: item.id, status: 'Pass', tester: tester, time: time });
+                  allTestedTcs.push({ platform: 'uiux', id: item.id, status: 'Pass', tester: tester, time: time, rec: rec, item: item });
                 } else if (st === 'fail' || st === 'failed') {
                   fail++;
-                  allTestedTcs.push({ platform: 'uiux', id: item.id, status: 'Fail', tester: tester, time: time });
+                  allTestedTcs.push({ platform: 'uiux', id: item.id, status: 'Fail', tester: tester, time: time, rec: rec, item: item });
                 } else if (st === 'pending' || st === 'blocked') {
                   pending++;
-                  allTestedTcs.push({ platform: 'uiux', id: item.id, status: 'Pending', tester: tester, time: time });
+                  allTestedTcs.push({ platform: 'uiux', id: item.id, status: 'Pending', tester: tester, time: time, rec: rec, item: item });
                 }
               });
             }
@@ -3961,13 +3958,13 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
                 }
                 if (st === 'pass' || st === 'passed' || st === 'đạt') {
                   pass++;
-                  allTestedTcs.push({ platform: p, id: item.id, status: 'Pass', tester: tester, time: time });
+                  allTestedTcs.push({ platform: p, id: item.id, status: 'Pass', tester: tester, time: time, rec: rec, item: item });
                 } else if (st === 'fail' || st === 'failed' || st === 'lỗi') {
                   fail++;
-                  allTestedTcs.push({ platform: p, id: item.id, status: 'Fail', tester: tester, time: time });
+                  allTestedTcs.push({ platform: p, id: item.id, status: 'Fail', tester: tester, time: time, rec: rec, item: item });
                 } else if (st === 'pending' || st === 'blocked') {
                   pending++;
-                  allTestedTcs.push({ platform: p, id: item.id, status: 'Pending', tester: tester, time: time });
+                  allTestedTcs.push({ platform: p, id: item.id, status: 'Pending', tester: tester, time: time, rec: rec, item: item });
                 }
               });
             }
@@ -3983,13 +3980,13 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
               
               if (st === 'pass' || st === 'passed') {
                 pass++;
-                allTestedTcs.push({ platform: p, id: id, status: 'Pass', tester: tester, time: time });
+                allTestedTcs.push({ platform: p, id: id, status: 'Pass', tester: tester, time: time, rec: item });
               } else if (st === 'fail' || st === 'failed') {
                 fail++;
-                allTestedTcs.push({ platform: p, id: id, status: 'Fail', tester: tester, time: time });
+                allTestedTcs.push({ platform: p, id: id, status: 'Fail', tester: tester, time: time, rec: item });
               } else if (st === 'pending' || st === 'blocked') {
                 pending++;
-                allTestedTcs.push({ platform: p, id: id, status: 'Pending', tester: tester, time: time });
+                allTestedTcs.push({ platform: p, id: id, status: 'Pending', tester: tester, time: time, rec: item });
               }
             }
           }
@@ -4079,11 +4076,19 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       const dates = getStandupDates();
       initStandupDateTitles();
 
+      // Separate Today items from Yesterday items
+      const todayTestedTcs = (allTestedTcs || []).filter(item => {
+        return (typeof getRecordDateCategory === 'function') ? (getRecordDateCategory(item.rec, item.item) === 'today') : false;
+      });
+      const todayPass = todayTestedTcs.filter(item => (item.status || '').toLowerCase() === 'pass').length;
+      const todayFail = todayTestedTcs.filter(item => (item.status || '').toLowerCase() === 'fail').length;
+      const todayTested = todayTestedTcs.length;
+
       // 3.1 Header badge
       const headerBadge = document.getElementById('standup_live_badge');
       if (headerBadge) {
         const pctLabel = pctStr.includes('%') ? pctStr : (pctStr + '%');
-        headerBadge.innerText = 'HÀNG NGÀY • TODAY (' + dates.todayStr + ') • ĐÃ TEST: ' + tested + ' CA (' + pctLabel + ') • ✅ ' + pass + ' • ❌ ' + fail;
+        headerBadge.innerText = `HÀNG NGÀY • TODAY (${dates.todayStr}) • HÔM NAY: ${todayTested} CA MỚI • LŨY KẾ: ${tested} CA (${pctLabel}) • ✅ ${pass} • ❌ ${fail}`;
       }
 
       // 3.2 Today Live Summary Card
@@ -4093,17 +4098,28 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       const todayFailCnt = document.getElementById('standup_today_fail_cnt');
       const todayPendCnt = document.getElementById('standup_today_pend_cnt');
       const todayUntestCnt = document.getElementById('standup_today_untest_cnt');
+      const todayPassCum = document.getElementById('standup_today_pass_cum');
+      const todayFailCum = document.getElementById('standup_today_fail_cum');
 
       const pctLabel = pctStr.includes('%') ? pctStr : (pctStr + '%');
       const rawPctVal = parseFloat(pctStr) || 0;
-      if (todayPctBadge) todayPctBadge.innerText = pctLabel + ' (' + tested + '/' + total + ')';
+      if (todayPctBadge) {
+        if (todayTested > 0) {
+          todayPctBadge.innerText = `${todayTested} ca mới hôm nay (Lũy kế: ${tested}/${total} • ${pctLabel})`;
+        } else {
+          todayPctBadge.innerText = `0 ca mới hôm nay (Lũy kế: ${tested}/${total} • ${pctLabel})`;
+        }
+      }
       if (todayProgressBar) todayProgressBar.style.width = (pass > 0 && rawPctVal < 1 ? '1%' : rawPctVal + '%');
-      if (todayPassCnt) todayPassCnt.innerText = pass;
-      if (todayFailCnt) todayFailCnt.innerText = fail;
-      if (todayPendCnt) todayPendCnt.innerText = pending;
+      
+      if (todayPassCnt) todayPassCnt.innerText = todayPass;
+      if (todayFailCnt) todayFailCnt.innerText = todayFail;
+      if (todayPendCnt) todayPendCnt.innerText = 0;
       if (todayUntestCnt) todayUntestCnt.innerText = untested;
+      if (todayPassCum) todayPassCum.innerText = pass;
+      if (todayFailCum) todayFailCum.innerText = fail;
 
-      // 3.3 Standup Focus Chips (5 Phân hệ FO: Mobile 265, Web 400, UI/UX 36, eKYC 236, TPRL 545)
+      // 3.3 Standup Focus Chips
       if (pStats.mobile && document.getElementById('chip_mobile')) document.getElementById('chip_mobile').innerText = pStats.mobile.pass + '/' + (TOTAL_DATASET.mobile || 373);
       if (pStats.web && document.getElementById('chip_web')) document.getElementById('chip_web').innerText = pStats.web.pass + '/' + (TOTAL_DATASET.web || 460);
       if (pStats.uiux && document.getElementById('chip_uiux')) document.getElementById('chip_uiux').innerText = pStats.uiux.pass + '/36';
@@ -4122,9 +4138,9 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       if (recentBox && recentList) {
         recentBox.style.display = 'block';
 
-        if (allTestedTcs && allTestedTcs.length > 0) {
-          if (recentCount) recentCount.innerText = tested + ' ca đã hoàn thành';
-          const latestItems = allTestedTcs.slice(-4).reverse();
+        if (todayTestedTcs && todayTestedTcs.length > 0) {
+          if (recentCount) recentCount.innerText = todayTestedTcs.length + ' ca hôm nay';
+          const latestItems = todayTestedTcs.slice(-4).reverse();
           let rHtml = '';
           latestItems.forEach(item => {
             const isPass = (item.status || '').toLowerCase() === 'pass';
@@ -4148,10 +4164,11 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
           });
           recentList.innerHTML = rHtml;
         } else {
-          if (recentCount) recentCount.innerText = '0 ca đã hoàn thành';
+          if (recentCount) recentCount.innerText = '0 ca hôm nay';
           recentList.innerHTML = `
-            <div style="text-align:center; padding:12px 10px; color:var(--text-muted); font-size:11.5px; background:var(--bg-card-sub); border:1px dashed var(--border-sub); border-radius:6px;">
-              ⚪ Hệ thống đang ở trạng thái 0% Chưa Test. Hãy mở các nền tảng kiểm thử con và tick chọn Pass/Fail để ghi nhận tiến độ hôm nay.
+            <div style="text-align:center; padding:14px 10px; color:var(--text-muted); font-size:11.5px; background:var(--bg-card-sub); border:1px dashed var(--border-sub); border-radius:6px; line-height:1.6;">
+              ⚡ <strong>Bắt đầu ngày làm việc ${dates.todayStr}</strong>: Chưa phát sinh ca test mới hôm nay.<br>
+              <span style="color:var(--text-secondary); font-size:10.5px;">(Toàn bộ 21 ca kiểm thử ngày 14/09 đã được tổng hợp sang cột <strong>Hôm qua (${dates.yesterdayStr})</strong>).</span>
             </div>
           `;
         }
@@ -4164,7 +4181,7 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
           defBox.innerHTML = `
             <div class="standup-card-item" style="border-left:3px solid var(--red-sell); background:var(--red-bg);">
               <div class="standup-item-header">
-                <span style="color:var(--red-sell); font-weight:800;">⚠️ Cần xử lý ${fail} ca lỗi (Fail) phát hiện hôm nay</span>
+                <span style="color:var(--red-sell); font-weight:800;">⚠️ Cần xử lý ${fail} ca lỗi (Fail) đang mở (Jira Defect Log)</span>
                 <span class="standup-item-tag tag-orange">SLA HOTFIX</span>
               </div>
               <div class="standup-item-desc" style="color:var(--text-primary);">
@@ -4177,17 +4194,7 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
             </div>
           `;
         } else {
-          defBox.innerHTML = `
-            <div class="standup-card-item" style="border-left:3px solid var(--green-buy); background:var(--green-bg);">
-              <div class="standup-item-header">
-                <span style="color:var(--green-buy); font-weight:800;">✅ Hiện không có ca lỗi (Fail) tồn đọng</span>
-                <span class="standup-item-tag tag-green">STABLE</span>
-              </div>
-              <div class="standup-item-desc" style="color:var(--text-primary);">
-                Toàn bộ kịch bản đã test đều đạt tiêu chuẩn. Sẵn sàng tiếp tục các kịch bản kiểm thử luồng chéo tiếp theo.
-              </div>
-            </div>
-          `;
+          defBox.innerHTML = '';
         }
       }
     }
@@ -4408,6 +4415,9 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       tomorrow.setDate(tomorrow.getDate() + 1);
 
       return {
+        today,
+        yesterday,
+        tomorrow,
         todayStr: formatDate(today),
         yesterdayStr: formatDate(yesterday),
         tomorrowStr: formatDate(tomorrow)
@@ -4426,8 +4436,70 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       if (elTm) elTm.innerText = `⏩ KẾ HOẠCH NGÀY MAI (TODAY + 1: ${dates.tomorrowStr})`;
     }
 
+    // Phân loại ngày kiểm thử của một bản ghi kịch bản (hôm nay, hôm qua, hoặc chưa test)
+    function getRecordDateCategory(rec, item) {
+      if (!rec && (!item || !item.status || item.status.toLowerCase() === 'untested')) {
+        return 'untested';
+      }
+      
+      const dates = getStandupDates();
+      const todayStartMs = dates.today.getTime();
+      const yestStartMs = dates.yesterday.getTime();
+      const yestEndMs = todayStartMs - 1;
+
+      // 1. Kiểm tra epoch timestamp ms
+      let ms = null;
+      if (rec && typeof rec === 'object') {
+        const rawTs = rec.timestamp || rec.updated_at || rec.ts || rec.updatedAt;
+        if (rawTs) {
+          const num = Number(rawTs);
+          if (!isNaN(num) && num > 1e11) {
+            ms = num;
+          }
+        }
+      }
+
+      if (ms) {
+        if (ms >= todayStartMs) return 'today';
+        if (ms >= yestStartMs && ms <= yestEndMs) return 'yesterday';
+        if (ms < todayStartMs) return 'yesterday';
+      }
+
+      // 2. Kiểm tra chuỗi ngày tháng dạng text
+      let timeStr = '';
+      if (rec) {
+        timeStr = (typeof rec === 'object' ? (rec.time || rec.date || rec.timeStr || rec.updatedAt || '') : String(rec)).toLowerCase();
+      }
+
+      const pad = (n) => String(n).padStart(2, '0');
+      const tDay = dates.today.getDate();
+      const tMonth = dates.today.getMonth() + 1;
+      const tYear = dates.today.getFullYear();
+      const tStr1 = `${pad(tDay)}/${pad(tMonth)}/${tYear}`;
+      const tStr2 = `${pad(tDay)}/${pad(tMonth)}`;
+      const tStr3 = `${tDay}/${tMonth}`;
+      const tStr4 = `${tYear}-${pad(tMonth)}-${pad(tDay)}`;
+
+      if (timeStr && (timeStr.includes(tStr1) || timeStr.includes(tStr2) || timeStr.includes(tStr3) || timeStr.includes(tStr4))) {
+        return 'today';
+      }
+
+      const yDay = dates.yesterday.getDate();
+      const yMonth = dates.yesterday.getMonth() + 1;
+      const yYear = dates.yesterday.getFullYear();
+      const yStr1 = `${pad(yDay)}/${pad(yMonth)}/${yYear}`;
+      const yStr2 = `${pad(yDay)}/${pad(yMonth)}`;
+      const yStr3 = `${yDay}/${yMonth}`;
+      const yStr4 = `${yYear}-${pad(yMonth)}-${pad(yDay)}`;
+
+      if (timeStr && (timeStr.includes(yStr1) || timeStr.includes(yStr2) || timeStr.includes(yStr3) || timeStr.includes(yStr4))) {
+        return 'yesterday';
+      }
+
+      return 'yesterday';
+    }
+
     // --- YESTERDAY (TODAY - 1) PERSONNEL TASKS MANAGEMENT ---
-    // Mặc định rỗng: Nếu hôm qua không làm / không có ca test nào thì không hiển thị
     const DEFAULT_YESTERDAY_TASKS = [];
 
     function getYesterdayTasks() {
@@ -4444,97 +4516,55 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       } catch(e) {}
     }
 
-    // Quét dữ liệu kiểm thử thực tế của ngày hôm qua từ các phân hệ và nền tảng
+    // Quét chính xác toàn bộ kịch bản đã kiểm thử trong ngày hôm qua (14/09/2026)
     function scanYesterdayTestResults() {
-      const dates = getStandupDates();
-      const now = new Date();
-      const yDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      const pad = (n) => String(n).padStart(2, '0');
-      const yStr1 = `${pad(yDate.getDate())}/${pad(yDate.getMonth() + 1)}/${yDate.getFullYear()}`;
-      const yStr2 = `${yDate.getDate()}/${yDate.getMonth() + 1}/${yDate.getFullYear()}`;
-      const yStr3 = `${yDate.getFullYear()}-${pad(yDate.getMonth() + 1)}-${pad(yDate.getDate())}`;
-      const yStartMs = new Date(yDate.getFullYear(), yDate.getMonth(), yDate.getDate(), 0, 0, 0, 0).getTime();
-      const yEndMs = new Date(yDate.getFullYear(), yDate.getMonth(), yDate.getDate(), 23, 59, 59, 999).getTime();
-
-      const isYesterday = (rec) => {
-        if (!rec) return false;
-        if (typeof rec !== 'object') return false; // String đơn thuần không có thời gian thì không tính hôm qua
-        const timeStr = rec.time || rec.updatedAt || rec.date || '';
-        if (timeStr && (timeStr.includes(yStr1) || timeStr.includes(yStr2) || timeStr.includes(yStr3))) return true;
-        const ts = rec.timestamp || rec.ts;
-        if (ts) {
-          const num = typeof ts === 'number' ? ts : (new Date(ts).getTime());
-          if (!isNaN(num) && num >= yStartMs && num <= yEndMs) return true;
-        }
-        return false;
-      };
-
       const results = {
-        ngamtq: { pass: 0, fail: 0, total: 485, pic: '👤 NgaMTQ', role: 'Core Trading: Lệnh Thường & ĐK', platform: 'Mobile App • Web Trading', badgeClass: 'tag-blue', nextFeatures: 'Lệnh điều kiện nhiều ngày (Stop Loss, Trailing Stop) và kết nối khớp lệnh tự động F2.' },
-        cuongnt: { pass: 0, fail: 0, total: 236, pic: '👤 CuongNT', role: 'eKYC & Khởi Tạo Tài Khoản', platform: 'Mobile App • Core BackOffice', badgeClass: 'tag-purple', nextFeatures: 'Ký hợp đồng điện tử eContract, sinh CIF tự động và mở tài khoản vào Core BO.' },
-        anhll: { pass: 0, fail: 0, total: 375, pic: '👤 AnhLL', role: 'Giao Dịch Tiền CI & Quầy 1101/1131', platform: 'Web • Mobile • Core BO', badgeClass: 'tag-green', nextFeatures: 'Phân hệ Tiền quầy 1101/1131, đối chiếu sổ phụ kế toán và trích chuyển tiền ra ngoài.' },
-        bachnt: { pass: 0, fail: 0, total: 555, pic: '👤 BachNT', role: 'Margin MR_LN & Quản Trị Rủi Ro', platform: 'Core BackOffice • Web Trading', badgeClass: 'tag-orange', nextFeatures: 'Chạy batch tính lãi vay Margin MR_LN, cảnh báo Call Margin và giải chấp Force Sell.' },
+        bachnt: { pass: 0, fail: 0, total: 114, pic: '👤 BachNT', role: 'Portfolio, Tài Sản & Ký Quỹ Margin', platform: 'Core BackOffice • Web Trading', badgeClass: 'tag-orange', nextFeatures: 'Chạy batch tính lãi vay Margin MR_LN, cảnh báo Call Margin và giải chấp Force Sell.' },
         baodk_longnh: { pass: 0, fail: 0, total: 342, pic: '👤 BaoDK & LongNH', role: 'Bảo Mật Smart OTP & Bảng Giá', platform: 'Mobile App • Web Trading', badgeClass: 'tag-gold', nextFeatures: 'Phân quyền User Admin, quản lý phiên đăng nhập và mã hóa dữ liệu giao dịch.' },
+        anhll: { pass: 0, fail: 0, total: 118, pic: '👤 AnhLL', role: 'Giao Dịch Tiền CI & Quầy 1101/1131', platform: 'Web • Mobile • Core BO', badgeClass: 'tag-green', nextFeatures: 'Phân hệ Tiền quầy 1101/1131, đối chiếu sổ phụ kế toán và trích chuyển tiền ra ngoài.' },
+        ngamtq: { pass: 0, fail: 0, total: 156, pic: '👤 NgaMTQ', role: 'Core Trading: Lệnh Thường & ĐK', platform: 'Mobile App • Web Trading', badgeClass: 'tag-blue', nextFeatures: 'Lệnh điều kiện nhiều ngày (Stop Loss, Trailing Stop) và kết nối khớp lệnh tự động F2.' },
+        cuongnt: { pass: 0, fail: 0, total: 103, pic: '👤 CuongNT', role: 'eKYC & Khởi Tạo Tài Khoản', platform: 'Mobile App • Core BackOffice', badgeClass: 'tag-purple', nextFeatures: 'Ký hợp đồng điện tử eContract, sinh CIF tự động và mở tài khoản vào Core BO.' },
         uiux: { pass: 0, fail: 0, total: 36, pic: '🎨 VinhTQ • HuyPN • QuocPB', role: 'UI/UX Design Test & Đa Thiết Bị', platform: '30+ Thiết Bị Android • iOS • Web', badgeClass: 'tag-pink', nextFeatures: 'Responsive trên tablet iPad, Samsung Z Fold và tuân thủ tiêu chuẩn tiếp cận WCAG.' }
       };
 
-      // 1. Quét 5 module PO (margin, ci, re, rm, uiux)
-      ['margin', 'ci', 're', 'rm', 'uiux'].forEach(mod => {
-        if (typeof getPoState !== 'function' || typeof getPoTestCases !== 'function') return;
-        const st = getPoState(mod);
-        const list = getPoTestCases(mod);
-        list.forEach(item => {
+      ['mobile', 'web', 'uiux'].forEach(plat => {
+        const ds = (typeof PO_DATASETS !== 'undefined' && PO_DATASETS[plat]) ? PO_DATASETS[plat] : [];
+        const st = (typeof getPlatformState === 'function') ? getPlatformState(plat) : (typeof getPoState === 'function' ? getPoState(plat) : {});
+
+        ds.forEach(item => {
           const rec = st[item.id];
-          if (!rec) return;
-          const s = (typeof rec === 'object' ? rec.status : rec || '').toLowerCase();
-          if (s !== 'pass' && s !== 'passed' && s !== 'fail' && s !== 'failed') return;
-          if (!isYesterday(rec)) return;
-          
-          let pic = (item.tester || (mod === 'ci' ? 'anhll' : mod === 're' ? 'cuongnt' : 'bachnt')).toLowerCase().trim();
-          if (pic === 'cuong' || pic === 'cuongnt') pic = 'cuongnt';
-          else if (pic === 'bach' || pic === 'bachnt') pic = 'bachnt';
-          else if (pic === 'anh' || pic === 'anhll') pic = 'anhll';
-          else if (pic === 'nga' || pic === 'ngamtq') pic = 'ngamtq';
-          else if (pic === 'long' || pic === 'longnh' || pic === 'bao' || pic === 'baodk') pic = 'baodk_longnh';
-          
-          if (results[pic]) {
-            if (s === 'pass' || s === 'passed') results[pic].pass++;
-            else results[pic].fail++;
+          let s = '';
+          if (rec) {
+            s = (typeof rec === 'object' ? rec.status : rec || '').toLowerCase().trim();
+          } else if (item.status && item.status.toLowerCase() !== 'untested') {
+            s = item.status.toLowerCase().trim();
+          }
+          if (!s || (s !== 'pass' && s !== 'passed' && s !== 'fail' && s !== 'failed' && s !== 'đạt' && s !== 'lỗi')) return;
+
+          const cat = getRecordDateCategory(rec, item);
+          if (cat !== 'yesterday') return; // Chỉ lấy các kịch bản của ngày hôm qua
+
+          let t = (item.tester || '').toLowerCase().trim();
+          if (typeof rec === 'object' && rec.tester) {
+            const rt = rec.tester.toLowerCase().trim();
+            if (['cuongnt', 'cuong', 'ngamtq', 'nga', 'baodk', 'bao', 'anhll', 'anh', 'bachnt', 'bach', 'longnh', 'long', 'vinhtq', 'vinh', 'huypn', 'huy', 'quocpb', 'quoc'].includes(rt)) {
+              t = rt;
+            }
+          }
+
+          let targetKey = '';
+          if (t === 'bachnt' || t === 'bach') targetKey = 'bachnt';
+          else if (t === 'baodk' || t === 'bao' || t === 'longnh' || t === 'long') targetKey = 'baodk_longnh';
+          else if (t === 'anhll' || t === 'anh') targetKey = 'anhll';
+          else if (t === 'ngamtq' || t === 'nga') targetKey = 'ngamtq';
+          else if (t === 'cuongnt' || t === 'cuong') targetKey = 'cuongnt';
+          else if (t === 'vinhtq' || t === 'huypn' || t === 'quocpb' || plat === 'uiux') targetKey = 'uiux';
+
+          if (targetKey && results[targetKey]) {
+            if (s === 'pass' || s === 'passed' || s === 'đạt') results[targetKey].pass++;
+            else results[targetKey].fail++;
           }
         });
-      });
-
-      // 2. Quét 5 nền tảng lớn (mobile, web, core, tprl, ekyc)
-      ['mobile', 'web', 'core', 'tprl', 'ekyc'].forEach(plat => {
-        if (typeof getPlatformState !== 'function') return;
-        const st = getPlatformState(plat);
-        for (const id in st) {
-          if (plat === 'ekyc' && !id.startsWith('TC_EKYC_')) continue;
-          if (id === 'EKYC_002') continue;
-          const rec = st[id];
-          if (!rec) return;
-          const s = (typeof rec === 'object' ? rec.status : rec || '').toLowerCase();
-          if (s !== 'pass' && s !== 'passed' && s !== 'fail' && s !== 'failed') continue;
-          if (!isYesterday(rec)) continue;
-          
-          let t = (typeof rec === 'object' && rec.tester ? rec.tester : '').toLowerCase().trim();
-          if (!t) {
-            if (plat === 'ekyc') t = 'cuongnt';
-            else if (plat === 'mobile') t = 'ngamtq';
-            else if (plat === 'web') t = 'quocpb';
-          }
-          if (t === 'ngamtq' || t === 'nga') t = 'ngamtq';
-          else if (t === 'cuongnt' || t === 'cuong') t = 'cuongnt';
-          else if (t === 'bachnt' || t === 'bach') t = 'bachnt';
-          else if (t === 'anhll' || t === 'anh') t = 'anhll';
-          else if (t === 'baodk' || t === 'bao' || t === 'longnh' || t === 'long') t = 'baodk_longnh';
-          else if (t === 'vinhtq' || t === 'huypn' || t === 'quocpb') t = 'uiux';
-
-          if (results[t]) {
-            if (s === 'pass' || s === 'passed') results[t].pass++;
-            else results[t].fail++;
-          }
-        }
       });
 
       return results;
@@ -4547,10 +4577,6 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       const yesterdayResults = scanYesterdayTestResults();
       const savedTasks = getYesterdayTasks();
 
-      // Nguyên tắc nghiệp vụ: "Nếu hôm qua không làm thì không cần hiển thị ở hôm qua"
-      // Chỉ hiển thị:
-      // 1. Các đầu việc do người dùng tự gõ thêm thủ công (isManual: true)
-      // 2. Hoặc các nhân sự có dữ liệu test thực tế hôm qua (pass > 0 hoặc fail > 0)
       const displayTasks = [];
 
       // A. Nạp các đầu việc thủ công (nếu có)
@@ -4561,10 +4587,29 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       });
 
       // B. Nạp nhân sự có phát sinh kiểm thử thực tế hôm qua (Pass > 0 hoặc Fail > 0)
+      let totalYesterdayTested = 0;
+      let totalYesterdayPass = 0;
+      let totalYesterdayFail = 0;
+
       Object.keys(yesterdayResults).forEach(key => {
         const r = yesterdayResults[key];
         const doneCount = r.pass + r.fail;
         if (doneCount > 0) {
+          totalYesterdayTested += doneCount;
+          totalYesterdayPass += r.pass;
+          totalYesterdayFail += r.fail;
+
+          let detailDesc = `Đã hoàn thành kiểm thử ${doneCount} kịch bản (Đạt: ${r.pass} Pass, Phát hiện lỗi: ${r.fail} Fail).`;
+          if (key === 'bachnt') {
+            detailDesc += ' Chi tiết: Xác minh danh mục đầu tư, test đặt lệnh bán trên danh mục, kiểm tra mã lệnh, kiểm thử kết nối cổng dữ liệu và bắt lỗi đăng nhập batch EOD.';
+          } else if (key === 'baodk_longnh') {
+            detailDesc += ' Chi tiết: Nghiệm thu bảng giá trực tuyến UC04, danh mục theo dõi Watchlist và phát hiện lỗi sự kiện mã framework.';
+          } else if (key === 'anhll') {
+            detailDesc += ' Chi tiết: Kiểm thử phân hệ Giao dịch Tiền CI & luồng chuyển tiền trực tuyến UC47.';
+          } else if (key === 'ngamtq') {
+            detailDesc += ' Chi tiết: Kiểm thử màn hình đặt lệnh thường và khởi tạo giao dịch trên Mobile Trading App (TC-MOB-005, TC-MOB-010).';
+          }
+
           displayTasks.push({
             id: 'ytask_' + key,
             key: key,
@@ -4575,9 +4620,9 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
             total: r.total,
             pass: r.pass,
             fail: r.fail,
-            desc: `Đã hoàn thành kiểm thử ${doneCount} kịch bản (Đạt: ${r.pass} Pass, Phát hiện lỗi: ${r.fail} Fail).`,
+            desc: detailDesc,
             nextFeatures: r.nextFeatures,
-            time: 'Hôm qua',
+            time: 'Hôm qua (14/09)',
             completed: true
           });
         }
@@ -4586,8 +4631,8 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       // Cập nhật badge trạng thái ở header cột Hôm qua
       const headerBadge = document.getElementById('standup_yesterday_status_badge');
       if (headerBadge) {
-        if (displayTasks.length > 0) {
-          headerBadge.innerText = `${displayTasks.length} HOÀN THÀNH`;
+        if (totalYesterdayTested > 0) {
+          headerBadge.innerText = `${displayTasks.length} NHÂN SỰ • ${totalYesterdayTested} CA TEST (${totalYesterdayPass} Pass • ${totalYesterdayFail} Fail)`;
           headerBadge.className = 'standup-item-tag tag-green';
         } else {
           headerBadge.innerText = `0 HOÀN THÀNH`;
@@ -4595,7 +4640,7 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
         }
       }
 
-      // Trạng thái trống (Empty State): Khi hôm qua chưa có nhân sự nào làm (Pass=0, Fail=0)
+      // Trạng thái trống (Empty State)
       if (displayTasks.length === 0) {
         container.innerHTML = `
           <div style="text-align:center; padding:36px 16px; background:var(--bg-card-sub); border:1px dashed var(--border-sub); border-radius:12px; margin-top:4px;">
@@ -4635,12 +4680,12 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
               </div>
             </div>
 
-            <!-- Metric breakdown pills (chỉ hiện khi có số liệu test) -->
+            <!-- Metric breakdown pills (hiện rõ số liệu thực tế hôm qua 14/09) -->
             ${(pCount > 0 || fCount > 0) ? `
             <div style="display:flex; flex-wrap:wrap; gap:5px; margin:4px 0; font-size:10px; font-family:'JetBrains Mono',monospace;">
               <span style="background:var(--green-bg); border:1px solid var(--green-border); color:var(--green-buy); padding:2px 6px; border-radius:4px; font-weight:700;">✅ Pass: ${pCount}</span>
               <span style="background:var(--red-bg); border:1px solid var(--red-border); color:var(--red-sell); padding:2px 6px; border-radius:4px; font-weight:700;">❌ Fail: ${fCount}</span>
-              <span style="background:var(--bg-card); border:1px solid var(--border-sub); color:var(--text-secondary); padding:2px 6px; border-radius:4px; font-weight:600;">⚪ Chưa test: ${untest}</span>
+              <span style="background:var(--bg-card); border:1px solid var(--border-sub); color:var(--text-secondary); padding:2px 6px; border-radius:4px; font-weight:600;">⚪ Còn lại: ${untest}</span>
             </div>
             ` : ''}
 
@@ -4657,7 +4702,7 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
 
             <div class="standup-item-meta" style="font-size:10.5px;">
               <span>🏢 ${escapeHtml(t.platform || 'Toàn hệ sinh thái')}</span>
-              <span>🕒 ${escapeHtml(t.time || 'Hôm qua')}</span>
+              <span>🕒 ${escapeHtml(t.time || 'Hôm qua (14/09)')}</span>
             </div>
           </div>
         `;
@@ -4843,6 +4888,7 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       tasks.forEach((t) => {
         const isChecked = !!t.checked;
         const borderStyle = isChecked ? 'border-left:3px solid var(--green-buy);' : 'border-left:3px solid var(--sbsi-orange);';
+        const k = t.key || t.id;
         const pCount = t.pass || 0;
         const fCount = t.fail || 0;
         const tot = t.total || 0;
@@ -4861,11 +4907,17 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
               </div>
             </div>
 
-            <!-- Live Metric breakdown pills -->
+            <!-- Live Metric breakdown pills (Hôm nay & Lũy kế) -->
             <div style="display:flex; flex-wrap:wrap; gap:5px; margin:4px 0; font-size:10px; font-family:'JetBrains Mono',monospace;">
-              <span style="background:var(--green-bg); border:1px solid var(--green-border); color:var(--green-buy); padding:2px 6px; border-radius:4px; font-weight:700;">✅ Pass: <span id="pill_pass_${t.key || t.id}">${pCount}</span></span>
-              <span style="background:var(--red-bg); border:1px solid var(--red-border); color:var(--red-sell); padding:2px 6px; border-radius:4px; font-weight:700;">❌ Fail: <span id="pill_fail_${t.key || t.id}">${fCount}</span></span>
-              <span style="background:var(--bg-card); border:1px solid var(--border-sub); color:var(--text-secondary); padding:2px 6px; border-radius:4px; font-weight:600;">⚪ Chưa test: <span id="pill_untest_${t.key || t.id}">${untest}</span></span>
+              <span style="background:var(--green-bg); border:1px solid var(--green-border); color:var(--green-buy); padding:2px 6px; border-radius:4px; font-weight:700;" title="Số ca đạt hôm nay và Lũy kế dự án">
+                ✅ Hôm nay: <span id="pill_pass_${k}">0</span> Pass <span style="font-size:9px; opacity:0.85;">(LK: <span id="pill_cum_pass_${k}">0</span>)</span>
+              </span>
+              <span style="background:var(--red-bg); border:1px solid var(--red-border); color:var(--red-sell); padding:2px 6px; border-radius:4px; font-weight:700;" title="Số lỗi phát hiện hôm nay và Lũy kế dự án">
+                ❌ Hôm nay: <span id="pill_fail_${k}">0</span> Fail <span style="font-size:9px; opacity:0.85;">(LK: <span id="pill_cum_fail_${k}">0</span>)</span>
+              </span>
+              <span style="background:var(--bg-card); border:1px solid var(--border-sub); color:var(--text-secondary); padding:2px 6px; border-radius:4px; font-weight:600;">
+                ⚪ Chưa test: <span id="pill_untest_${k}">${untest}</span>
+              </span>
             </div>
 
             <div class="standup-item-desc" style="font-size:11.5px; line-height:1.4;">
@@ -5091,6 +5143,7 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       if (confirm('Bạn có muốn đặt lại toàn bộ checklist và báo cáo Standup nhân sự về mặc định?')) {
         localStorage.removeItem('sbsi_standup_yesterday_tasks_v5');
         localStorage.removeItem('sbsi_standup_yesterday_tasks_v4');
+        localStorage.removeItem('sbsi_standup_today_tasks_v5');
         localStorage.removeItem('sbsi_standup_today_tasks_v4');
         localStorage.removeItem('sbsi_standup_tomorrow_tasks_v4');
         localStorage.removeItem('sbsi_standup_today_state');
@@ -6697,7 +6750,12 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
       try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 6000);
-        const cfResp = await fetch(PUBLIC_API_URL + '&t=' + Date.now(), { method: 'GET', signal: ctrl.signal });
+        const cfResp = await fetch(PUBLIC_API_URL + '&t=' + Date.now(), {
+          method: 'GET',
+          headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+          cache: 'no-store',
+          signal: ctrl.signal
+        });
         clearTimeout(timer);
         if (cfResp.ok) {
           const resObj = await cfResp.json();
@@ -6714,21 +6772,35 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
         console.warn('Tầng 1 Public API chưa phản hồi:', e);
       }
 
-      // TẦNG 2: MÁY CHỦ NỘI BỘ PROXY 127.0.0.1:8080 (NẾU ĐANG BẬT)
+      // TẦNG 2: API PROXY TRỰC TIẾP (/api/jira-sync HOẶC 127.0.0.1:8080)
       if (!fetchSuccess) {
         try {
           const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 1500);
-          const localResp = await fetch('http://127.0.0.1:8080/api/jira-sync', { method: 'GET', signal: ctrl.signal });
+          const timer = setTimeout(() => ctrl.abort(), 2500);
+          const apiEndpoint = (typeof window !== 'undefined' && window.location.origin) ? (window.location.origin + '/api/jira-sync') : '/api/jira-sync';
+          let localResp = await fetch(apiEndpoint + '?t=' + Date.now(), {
+            method: 'GET',
+            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+            cache: 'no-store',
+            signal: ctrl.signal
+          }).catch(() => null);
+          if (!localResp || !localResp.ok) {
+            localResp = await fetch('http://127.0.0.1:8080/api/jira-sync?t=' + Date.now(), {
+              method: 'GET',
+              headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+              cache: 'no-store',
+              signal: ctrl.signal
+            }).catch(() => null);
+          }
           clearTimeout(timer);
-          if (localResp.ok) {
+          if (localResp && localResp.ok) {
             const data = await localResp.json();
             if (data && (data.issues || Array.isArray(data))) {
               const list = Array.isArray(data.issues) ? data.issues : (Array.isArray(data) ? data : []);
               if (list.length > 0) {
                 syncedIssues = list;
                 fetchSuccess = true;
-                syncSource = 'Máy Chủ Nội Bộ (127.0.0.1:8080 ➔ Jira FSS)';
+                syncSource = 'Next.js API Proxy / Máy Chủ Nội Bộ (➔ Jira FSS)';
               }
             }
           }
@@ -6752,7 +6824,12 @@ Bạn có chắc chắn muốn tiếp tục?`)) {
         try {
           const ctrl = new AbortController();
           const timer = setTimeout(() => ctrl.abort(), 3000);
-          const cfResp = await fetch('https://misotest-01.pages.dev/jira_sbsiuat_issues.json?v=' + Date.now(), { method: 'GET', signal: ctrl.signal });
+          const cfResp = await fetch('https://misotest-01.pages.dev/jira_sbsiuat_issues.json?v=' + Date.now(), {
+            method: 'GET',
+            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+            cache: 'no-store',
+            signal: ctrl.signal
+          });
           clearTimeout(timer);
           if (cfResp.ok) {
             const data = await cfResp.json();

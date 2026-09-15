@@ -4,6 +4,9 @@
 import { kvGet } from "@sbsi/cloudflare-kv";
 import { corsJson, corsOptions } from "@/lib/cors";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type PlatformState = Record<string, unknown>;
 type CentralState = Record<string, PlatformState>;
 
